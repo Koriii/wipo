@@ -4,7 +4,8 @@ export default authkitMiddleware();
 
 export const config = {
   matcher: [
-    // Match all paths except static files and API routes that don't need auth
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    // Only match the root and specific paths that need auth
+    // Exclude static files, auth callback, and Next.js internals
+    "/((?!_next/static|_next/image|favicon.ico|api/auth).*)",
   ],
 };
