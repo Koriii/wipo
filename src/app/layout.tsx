@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
@@ -14,8 +14,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WIPO PDF Viewer",
-  description: "View and download WIPO provisional refusal PDFs",
+  title: {
+    default: "WIPO PDF Viewer",
+    template: "%s | WIPO PDF Viewer",
+  },
+  description:
+    "Securely access and download WIPO Madrid Protocol provisional refusal documents. Enterprise-grade authentication for IP professionals.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://wipo-pdf-viewer.com"
+  ),
+  icons: {
+    icon: "/favicon.ico",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
@@ -39,7 +58,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <ThemeProvider>{children}</ThemeProvider>
       </body>

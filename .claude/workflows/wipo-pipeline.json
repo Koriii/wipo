@@ -1,0 +1,103 @@
+{
+  "name": "WIPO Data Pipeline",
+  "version": "1.0.0",
+  "description": "Automated pipeline for scraping WIPO provisional refusal PDFs and making them available through the viewer",
+  "triggers": {
+    "manual": true,
+    "schedule": "0 0 * * 0"
+  },
+  "environment": {
+    "scraper_path": "/Users/akorinek/Programming/wipo-scraper",
+    "viewer_path": "/Users/akorinek/Programming/wipo-pdf-viewer",
+    "r2_bucket": "${R2_BUCKET}",
+    "max_irns": "100"
+  },
+  "steps": [
+    {
+      "id": "check-dependencies",
+      "name": "Check Dependencies",
+      "description": "Verify both projects have required dependencies installed",
+      "agent": "wipo/data-pipeline-orchestrator",
+      "commands": [
+        {
+          "cwd": "${scraper_path}",
+          "run": "npm ci"
+        },
+        {
+          "cwd": "${viewer_path}",
+          "run": "npm ci"
+        }
+      ],
+      "on_failure": "abort"
+    },
+    {
+      "id": "scrape-wipo",
+      "name": "Scrape WIPO Documents",
+      "description": "Run the scraper to fetch new provisional refusal PDFs",
+      "agent": "wipo/scraper-coordinator",
+      "commands": [
+        {
+          "cwd": "${scraper_path}",
+          "run": "npm run scrape:r2 -- --max ${max_irns}",
+          "timeout": "30m"
+        }
+      ],
+      "outputs": ["scrape_result"],
+      "on_failure": "continue"
+    },
+    {
+      "id": "verify-uploads",
+      "name": "Verify R2 Uploads",
+      "description": "Check that all scraped PDFs were uploaded to R2",
+      "agent": "wipo/data-pipeline-orchestrator",
+      "depends_on": ["scrape-wipo"],
+      "commands": [
+        {
+          "cwd": "${viewer_path}",
+          "run": "node -e \"const {listPDFs} = require('./src/lib/r2'); listPDFs().then(pdfs => console.log(JSON.stringify({count: pdfs.length})))\""
+        }
+      ],
+      "outputs": ["pdf_count"]
+    },
+    {
+      "id": "validate-viewer",
+      "name": "Validate Viewer",
+      "description": "Ensure the viewer can access the new PDFs",
+      "agent": "wipo/viewer-manager",
+      "depends_on": ["verify-uploads"],
+      "commands": [
+        {
+          "cwd": "${viewer_path}",
+          "run": "npm run build"
+        }
+      ],
+      "on_failure": "notify"
+    },
+    {
+      "id": "generate-report",
+      "name": "Generate Report",
+      "description": "Create summary of pipeline execution",
+      "agent": "wipo/data-pipeline-orchestrator",
+      "depends_on": ["validate-viewer"],
+      "template": {
+        "type": "summary",
+        "include": ["scrape_result", "pdf_count"]
+      }
+    }
+  ],
+  "notifications": {
+    "on_success": {
+      "type": "log",
+      "message": "WIPO pipeline completed successfully"
+    },
+    "on_failure": {
+      "type": "log",
+      "message": "WIPO pipeline failed - check logs for details"
+    }
+  },
+  "metadata": {
+    "created": "2026-01-06",
+    "author": "claude-flow",
+    "tags": ["wipo", "scraping", "pdf", "pipeline"]
+  }
+}
